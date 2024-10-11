@@ -3,4 +3,4 @@ datasets:
     data_type: images
     build_info:
       image_path: /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data/ShareGPTData/Images
-      ann_path: /home/vfourel/FaceGPT/Data/ShareGPTData/Annotations/subset_objects_gpt4vision_100k.json
+      ann_path: /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data/ShareGPTData/Annotations/subset_objects_gpt4vision_100k.json

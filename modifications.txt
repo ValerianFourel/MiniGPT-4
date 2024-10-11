@@ -21,3 +21,32 @@ Inside of the file MiniGPT-4/minigpt4/datasets/builders/image_text_pair_builder.
 - we need a wrapper builder class for each of the finetuning dataset (ShareGPT_Face and FaceGPT4Vision) 
 
 We then put of our data, inside of /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data
+
+For each dataset:
+-  we have the ShareGPT Data with images annotated by GPT4Vision and/or the ShareCaptioner by the ShareGPT:
+Number of images in each file:
+subset_objects_gpt4vision_100k.json: 19514 images
+subset_objects_share-captioner_coco_lcs_sam_1246k_1107.json: 17754 images
+
+Number of overlapping image paths: 17759
+
+- We have the GPT4VisionDataset that we have collected by sending images to OpenAI's API for annotations:
+We have the subsections:
+Object counts in gpt4VisionCalls_Cleaned_BySection.json:
+Pre-Prompt: 4 objects
+Facial Expression due to contextual cues: 1497 objects
+Facial Characteristics Long: 1511 objects
+Factual Generalization: 1246 objects
+Mouvement Description: 349 objects
+Interpretative Generalization: 1346 objects
+Intensity of the emotion: 1584 objects
+Posture: 739 objects
+Race: 1188 objects
+Race and Gender: 192 objects
+Facial Characteristics Short : 196 objects
+Gender: 1205 objects
+Human or not: 1182 objects
+Feature by Feature Description: 766 objects
+Fitzpatrick: 94 objects
+Multi-Person Interaction: 0 objects
+

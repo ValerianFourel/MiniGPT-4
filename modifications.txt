@@ -16,3 +16,8 @@ We add folders to contain the configurations files for the training files path,
 to be found at:  ~/FaceGPT/Archive/MiniGPT-4/minigpt4/configs/datasets/ :
 - chatgpt4vision
 - sharegpt
+
+Inside of the file MiniGPT-4/minigpt4/datasets/builders/image_text_pair_builder.py :
+- we need a wrapper builder class for each of the finetuning dataset (ShareGPT_Face and FaceGPT4Vision) 
+
+We then put of our data, inside of /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data

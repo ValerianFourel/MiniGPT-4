@@ -4,8 +4,8 @@ model:
   max_txt_len: 3072
   image_size: 448
   end_sym: "</s>"
-  llama_model: "meta-llama/Llama-2-7b-chat-hf" # "/ps/scratch/ps_shared/vfourel/LMMmodels/Llama-2-7b-chat-hf"
-  ckpt: '/home/vfourel/MiniGPT-4/modelsLLM/20240327083/checkpoint_1.pth' # '/home/vfourel/MiniGPT-4/modelsLLM/20240326183/checkpoint_2.pth' # '/home/vfourel/MiniGPT-4/modelsLLM/20240326165/checkpoint_3.pth' # '/home/vfourel/MiniGPT-4/originalMinigpt/minigptv2_checkpoint.pth' # '/ps/scratch/ps_shared/vfourel/LMMmodels/GPT4Finetune/miniGPTv2/20240206144/checkpoint_4.pth' #'/ps/scratch/ps_shared/vfourel/LMMmodels/minigptv2CheckPoints/minigptv2_checkpoint.pth' #'/home/vfourel/LMMmodels/minigptv2CheckPoints/minigptv2_checkpoint.pth' # '../LMMmodels/minigptv2CheckPoints/minigptv2_checkpoint.pth' #'/home/vfourel/LMMmodels/GPT4Finetune/miniGPTv2/20240131184/checkpoint_6.pth'
+  llama_model: "/fast/vfourel/LMMmodels/Llama-2-7b-chat-hf" 
+  ckpt: '/fast/vfourel/LMMmodels/minigptv2CheckPoints/minigptv2_checkpoint.pth' 
   use_grad_checkpoint: True #06125
   use_grad_checkpoint_llm: False  # modify this to check if it changes the training  # make the difference between the two types of checkpoints. Only work if False,
 
@@ -51,7 +51,7 @@ run:
   iters_per_epoch: 9500
 
   seed: 14401
-  output_dir: '/home/vfourel/MiniGPT-4/modelsLLM/' # '/ps/scratch/ps_shared/vfourel/LMMmodels/GPT4Finetune/miniGPTv2'
+  output_dir: '/fast/vfourel/faceGPTOutput' 
 
   amp: True
   resume_ckpt_path: null

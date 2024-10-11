@@ -18,7 +18,18 @@ from minigpt4.datasets.datasets.aok_vqa_datasets import AOKVQADataset
 from minigpt4.datasets.datasets.coco_vqa_datasets import COCOVQADataset
 from minigpt4.datasets.datasets.ocrvqa_dataset import OCRVQADataset
 from minigpt4.datasets.datasets.coco_caption import COCOCapDataset
+######################################################################################
+#
+#  Modification made by Valerian Fourel 
+#   Note: You need to modify the list of dataset the Registry "sees" here.
+#   For example, we have  curated soem data from the ShareGPT (100k for the moment) dataset, which follows a similar process,
+#   and is comparable in scope to the LLaVA Details dataset. I will import it below and add it in the code accordingly. # VF
 
+#######################################################################################
+from minigpt4.datasets.datasets.sharegpt_dataset import ShareGptDetailDataset
+from minigpt4.datasets.datasets.chatgpt4vision_datasets import Gpt4VisionFaceDetailDataset
+
+#################################################################################################
 
 @registry.register_builder("multitask_conversation")
 class MultitaskConversationBuilder(BaseDatasetBuilder):
@@ -95,6 +106,93 @@ class LlavaDetailBuilder(BaseDatasetBuilder):
         )
 
         return datasets
+
+
+#################################################################################################
+#   
+# Modification by ValerianFourel:
+# we need to register the shareGPT dataset to the Registry (Singleton Pattern). We will add here.
+# modification to be made to match the design of LlaVA closely.
+#
+#################################################################################################
+
+
+
+@registry.register_builder("sharegpt_detail")
+class ShareGptDetailBuilder(BaseDatasetBuilder):
+    train_dataset_cls = ShareGptDetailDataset
+    DATASET_CONFIG_DICT = {
+        "default": "configs/datasets/sharegpt/detail.yaml", # .yaml for the sharegpt
+    }
+
+    def build_datasets(self):
+        # at this point, all the annotations and image/videos should be all downloaded to the specified locations.
+        logging.info("Building datasets...")
+        self.build_processors()
+        build_info = self.config.build_info
+        print(build_info)
+        datasets = dict()
+
+        # create datasets
+        dataset_cls = self.train_dataset_cls
+        datasets['train'] = dataset_cls(
+            vis_processor=self.vis_processors["train"],
+            text_processor=self.text_processors["train"],
+            ann_path=build_info.ann_path,
+            vis_root=build_info.image_path,
+        )
+
+        return datasets
+    
+
+
+
+
+#################################################################################################
+#   
+# Modification by ValerianFourel:
+# we need to register the shareGPT dataset to the Registry (Singleton Pattern). We will add here.
+# modification to be made to match the design of LlaVA closely.
+# Here we have the second dataset that We want to build. That is the Gpt4VisionFace Dataset.
+#
+#################################################################################################
+
+
+
+@registry.register_builder("gpt4visionface_detail")
+class Gpt4VisionFaceDetailBuilder(BaseDatasetBuilder):
+    train_dataset_cls = Gpt4VisionFaceDetailDataset
+    DATASET_CONFIG_DICT = {
+        "default": "configs/datasets/chatgpt4vision/facedetail.yaml", # .yaml for the sharegpt
+    }
+
+    def build_datasets(self):
+        # at this point, all the annotations and image/videos should be all downloaded to the specified locations.
+        logging.info("Building datasets...")
+        self.build_processors()
+        build_info = self.config.build_info
+        print(build_info)
+        datasets = dict()
+
+        # create datasets
+        dataset_cls = self.train_dataset_cls
+        datasets['train'] = dataset_cls(
+            vis_processor=self.vis_processors["train"],
+            text_processor=self.text_processors["train"],
+            ann_path=build_info.ann_path,
+            vis_root=build_info.image_path,
+            subsets_prompts = build_info.subsets_prompts
+        )
+
+        return datasets
+    
+
+
+
+#################################################################################################
+
+
+
     
 
 

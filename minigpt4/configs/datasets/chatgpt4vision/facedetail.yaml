@@ -2,6 +2,6 @@ datasets:
   gpt4visionface_detail:
     data_type: images
     build_info:
-      image_path: /home/vfourel/FaceGPT/Data/GPT4MaxPlanckRun/Images
-      ann_path: /home/vfourel/FaceGPT/Data/GPT4MaxPlanckRun/Descriptions/GPT4MPI_Cleaned/test2.json
+      image_path: /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data/GPT4VisionData/Images
+      ann_path: /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data/GPT4VisionData/Annotations/gpt4VisionCalls_Cleaned_BySection.json
       subsets_prompts: [ "Facial Characteristics Long" ,  "Interpretative Generalization",  "Factual Generalization","Facial Expression due to contextual cues" ,  "Feature by Feature Description"  , "Human or not"]

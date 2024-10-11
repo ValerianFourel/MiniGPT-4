@@ -1,0 +1,18 @@
+
+We made the following modifications from the original:
+Inference files for the command lines:
+- demo_v2_command_line.py
+- demo_v1_command_line.py
+
+We add dataset files inside of: ~/FaceGPT/Archive/MiniGPT-4/minigpt4/datasets/datasets :
+- sharegpt_dataset.py
+- chatgpt4vision_datasets.py
+
+We add train configs files inside of: ~/FaceGPT/Archive/MiniGPT-4/train_configs :
+- minigpt4_stage2_finetune_gpt4vision.yaml
+- minigptv2_finetune_gpt4vision.yaml
+
+We add folders to contain the configurations files for the training files path,
+to be found at:  ~/FaceGPT/Archive/MiniGPT-4/minigpt4/configs/datasets/ :
+- chatgpt4vision
+- sharegpt

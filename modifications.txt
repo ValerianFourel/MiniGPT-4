@@ -52,3 +52,7 @@ Multi-Person Interaction: 0 objects
 
 
 The train loop is executed inside of MiniGPT-4/minigpt4/task/base_task.py
+
+We modify the files MiniGPT-4/train_configs/minigptv2_finetune_gpt4vision.yaml
+to lower the number of workerrs for training to 1, and set the number of
+ gradient accumulations from 1 to 8

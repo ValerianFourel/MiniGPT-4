@@ -15,7 +15,10 @@ from minigpt4.common.logger import MetricLogger, SmoothedValue
 from minigpt4.common.registry import registry
 from minigpt4.datasets.data_utils import prepare_sample
 import wandb
-
+#================================
+# Stitch Val
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:32'
+#================================
 class BaseTask:
     def __init__(self, **kwargs):
         super().__init__()
@@ -113,6 +116,7 @@ class BaseTask:
         log_freq=50,
         accum_grad_iters=1,
     ):
+        print('accum_grad_iters: ', accum_grad_iters)
         return self._train_inner_loop(
             epoch=epoch,
             iters_per_epoch=lr_scheduler.iters_per_epoch,
@@ -216,7 +220,7 @@ class BaseTask:
             )
 
             lr_scheduler.step(cur_epoch=inner_epoch, cur_step=i)
-
+            # print("samples.keys(): ",len(samples.keys()))
             with torch.cuda.amp.autocast(enabled=use_amp):
                 loss = self.train_step(model=model, samples=samples)
 

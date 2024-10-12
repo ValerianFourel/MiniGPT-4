@@ -48,7 +48,7 @@ run:
   max_epoch: 200
   num_workers: 6
   warmup_steps: 1000
-  iters_per_epoch: 9500
+  iters_per_epoch: 2500
 
   seed: 14401
   output_dir: '/fast/vfourel/faceGPTOutput' 

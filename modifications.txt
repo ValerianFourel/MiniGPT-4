@@ -50,3 +50,5 @@ Feature by Feature Description: 766 objects
 Fitzpatrick: 94 objects
 Multi-Person Interaction: 0 objects
 
+
+The train loop is executed inside of MiniGPT-4/minigpt4/task/base_task.py

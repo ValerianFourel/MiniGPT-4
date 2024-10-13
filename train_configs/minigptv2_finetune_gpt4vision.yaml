@@ -43,7 +43,7 @@ run:
   init_lr: 7e-6
   min_lr: 8e-5
   warmup_lr: 1e-6
-  accum_grad_iters: 8 # VF: we need to add this to counter the batch and worker numbers
+  accum_grad_iters: 8 # VF: we need to add this to counter the low  batch and worker numbers
 
   weight_decay: 0.05
   max_epoch: 200

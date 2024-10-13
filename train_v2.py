@@ -31,7 +31,10 @@ from minigpt4.models import *
 from minigpt4.processors import *
 from minigpt4.runners import *
 from minigpt4.tasks import *
-
+#================================
+# Stitch Val
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:1024'
+#================================
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Training")

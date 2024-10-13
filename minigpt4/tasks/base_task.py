@@ -17,7 +17,8 @@ from minigpt4.datasets.data_utils import prepare_sample
 import wandb
 #================================
 # Stitch Val
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:32'
+import gc
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:1024'
 #================================
 class BaseTask:
     def __init__(self, **kwargs):
@@ -209,7 +210,9 @@ class BaseTask:
                 break
 
             samples = next(data_loader)
-
+            #####################
+            # We need to empty the cache()
+            torch.cuda.empty_cache()
             samples = prepare_sample(samples, cuda_enabled=cuda_enabled)
             samples.update(
                 {
@@ -251,6 +254,7 @@ class BaseTask:
         #####################
         # We need to empty the cache()
         torch.cuda.empty_cache()
+        gc.collect()
 
         return {
             k: "{:.3f}".format(meter.global_avg)

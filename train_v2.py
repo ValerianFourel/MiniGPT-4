@@ -33,7 +33,7 @@ from minigpt4.runners import *
 from minigpt4.tasks import *
 #================================
 # Stitch Val
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:1024'
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
 #================================
 
 def parse_args():

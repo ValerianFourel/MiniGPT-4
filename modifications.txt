@@ -56,3 +56,17 @@ The train loop is executed inside of MiniGPT-4/minigpt4/task/base_task.py
 We modify the files MiniGPT-4/train_configs/minigptv2_finetune_gpt4vision.yaml
 to lower the number of workerrs for training to 1, and set the number of
  gradient accumulations from 1 to 8
+
+
+
+In the file: MiniGPT-4/minigpt4/models/minigpt_base.py
+we modify to         return {"loss": loss,"output s": outputs} # modifications by VF
+Such that we can delete outputs to save RAM space
+We can then delete it in MiniGPT-4/minigpt4/task/base_task.py
+- we modify the function train_step(self, model, samples)
+- _train_inner_loop
+
+
+we try a last thing by adding this as export:
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+

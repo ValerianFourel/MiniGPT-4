@@ -305,7 +305,7 @@ class MiniGPTBase(BaseModel):
             )
         loss = outputs.loss
 
-        return {"loss": loss}
+        return {"loss": loss,"outputs": outputs} # modifications by VF
 
     def embed_tokens(self, token_ids):
         if hasattr(self.llama_model.base_model, 'model'): ## lora wrapped model

@@ -5,7 +5,7 @@ model:
   image_size: 448
   end_sym: "</s>"
   llama_model: "/fast/vfourel/LMMmodels/Llama-2-7b-chat-hf" 
-  ckpt: '/fast/vfourel/faceGPTOutput/20241015142/checkpoint_2.pth' 
+  ckpt: '/fast/vfourel/faceGPTOutput/20241015175/checkpoint_2.pth' 
   use_grad_checkpoint: True #06125
   use_grad_checkpoint_llm: False  # modify this to check if it changes the training  # make the difference between the two types of checkpoints. Only work if False,
 
@@ -51,7 +51,7 @@ run:
   warmup_steps: 1000
   iters_per_epoch: 640
 
-  seed: 42
+  seed: 43
   output_dir: '/fast/vfourel/faceGPTOutput' 
 
   amp: True

@@ -1,6 +1,0 @@
-datasets:
-  RealisticEmotions_detail:
-    data_type: images
-    build_info:
-      image_path: /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data/RealisticEmotionsData/Images
-      ann_path: /fast/vfourel/FaceGPT/Data/StableFaceData/AffectNet41k_FlameRender_Descriptions_Images/affectnet_41k_AffectOnly/Modified_PromptsSmall_AffectOnly_41ksamples.json

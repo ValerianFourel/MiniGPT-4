@@ -5,7 +5,7 @@ model:
   image_size: 448
   end_sym: "</s>"
   llama_model: "/fast/vfourel/LMMmodels/Llama-2-7b-chat-hf" 
-  ckpt: '/fast/vfourel/faceGPTOutput/20241015175/checkpoint_2.pth' 
+  ckpt: '/fast/vfourel/LMMmodels/minigptv2CheckPoints/minigptv2_checkpoint.pth' 
   use_grad_checkpoint: True #06125
   use_grad_checkpoint_llm: False  # modify this to check if it changes the training  # make the difference between the two types of checkpoints. Only work if False,
 
@@ -23,7 +23,7 @@ datasets:
     text_processor:
       train:
         name: "blip_caption"
-    sample_ratio: 30
+    sample_ratio: 0
 
   gpt4visionface_detail:
     batch_size: 1
@@ -34,7 +34,7 @@ datasets:
     text_processor:
       train:
         name: "blip_caption"
-    sample_ratio: 10
+    sample_ratio: 0
 
   RealisticEmotions_detail:
     batch_size: 1

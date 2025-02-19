@@ -28,7 +28,7 @@ from minigpt4.datasets.datasets.coco_caption import COCOCapDataset
 #######################################################################################
 from minigpt4.datasets.datasets.sharegpt_dataset import ShareGptDetailDataset
 from minigpt4.datasets.datasets.chatgpt4vision_datasets import Gpt4VisionFaceDetailDataset
-from minigpt4.datasets.datasets.41kRealisticEmotions_datasets import RealisticEmotionsDetailDataset
+from minigpt4.datasets.datasets.RealisticEmotions41k_datasets import RealisticEmotionsDetailDataset
 
 #################################################################################################
 
@@ -220,7 +220,6 @@ class RealisticEmotionsDetailBuilder(BaseDatasetBuilder):
             text_processor=self.text_processors["train"],
             ann_path=build_info.ann_path,
             vis_root=build_info.image_path,
-            subsets_prompts = build_info.subsets_prompts
         )
 
         return datasets

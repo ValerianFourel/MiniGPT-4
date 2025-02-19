@@ -1,12 +1,75 @@
-# MiniGPT-V
+# MiniGPTFace
+
+## Training of MiniGPT-4
+
+The training of MiniGPT-4 contains two alignment stages.
+
+**1. First pretraining stage**
+
+In the first pretrained stage, the model is trained using image-text pairs from Laion and CC datasets
+to align the vision and language model. To download and prepare the datasets, please check 
+our [first stage dataset preparation instruction](dataset/README_1_STAGE.md). 
+After the first stage, the visual features are mapped and can be understood by the language
+model.
+To launch the first stage training, run the following command. In our experiments, we use 4 A100. 
+You can change the save path in the config file 
+[train_configs/minigpt4_stage1_pretrain.yaml](train_configs/minigpt4_stage1_pretrain.yaml)
+
+```bash
+torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/minigpt4_stage1_pretrain.yaml
+```
+
+A MiniGPT-4 checkpoint with only stage one training can be downloaded 
+[here (13B)](https://drive.google.com/file/d/1u9FRRBB3VovP1HxCAlpD9Lw4t4P6-Yq8/view?usp=share_link) or [here (7B)](https://drive.google.com/file/d/1HihQtCEXUyBM1i9DQbaK934wW3TZi-h5/view?usp=share_link).
+Compared to the model after stage two, this checkpoint generate incomplete and repeated sentences frequently.
+
+
+**2. Second finetuning stage**
+
+In the second stage, we use a small high quality image-text pair dataset created by ourselves
+and convert it to a conversation format to further align MiniGPT-4.
+To download and prepare our second stage dataset, please check our 
+[second stage dataset preparation instruction](dataset/README_2_STAGE.md).
+To launch the second stage alignment, 
+first specify the path to the checkpoint file trained in stage 1 in 
+[train_configs/minigpt4_stage1_pretrain.yaml](train_configs/minigpt4_stage2_finetune.yaml).
+You can also specify the output path there. 
+Then, run the following command. In our experiments, we use 1 A100.
+
+```bash
+torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/minigpt4_stage2_finetune.yaml
+```
+
+After the second stage alignment, MiniGPT-4 is able to talk about the image coherently and user-friendly. 
+
+
+## Finetune of MiniGPT-4 Part 2
+
+
+You firstly need to prepare the dataset. you can follow this step to prepare the dataset.
+our [dataset preparation](dataset/README_MINIGPTv2_FINETUNE.md). 
+
+In the train_configs/minigptv2_finetune.yaml, you need to set up the following paths:
+
+llama_model checkpoint path: "/path/to/llama_checkpoint"
+
+ckpt: "/path/to/pretrained_checkpoint"
+
+ckpt save path: "/path/to/save_checkpoint"
+
+For ckpt, you may load from our pretrained model checkpoints:
+| MiniGPT-v2 (after stage-2) | MiniGPT-v2 (after stage-3) | MiniGPT-v2 (online developing demo) | 
+|------------------------------|------------------------------|------------------------------|
+| [Download](https://drive.google.com/file/d/1Vi_E7ZtZXRAQcyz4f8E6LtLh2UXABCmu/view?usp=sharing) |[Download](https://drive.google.com/file/d/1HkoUUrjzFGn33cSiUkI-KcT-zysCynAz/view?usp=sharing) | [Download](https://drive.google.com/file/d/1aVbfW7nkCSYx99_vCRyP1sOlQiWVSnAl/view?usp=sharing) |
+
+
+```bash
+torchrun --nproc-per-node NUM_GPU train.py --cfg-path train_configs/minigptv2_finetune.yaml
+```
+
+
 
 <font size='5'>**MiniGPT-v2: Large Language Model as a Unified Interface for Vision-Language Multi-task Learning**</font>
-
-Jun Chen, Deyao Zhu, Xiaoqian Shen, Xiang Li, Zechun Liu, Pengchuan Zhang, Raghuraman Krishnamoorthi, Vikas Chandra, Yunyang Xiong☨, Mohamed Elhoseiny☨
-
-☨equal last author
-
-<a href='https://minigpt-v2.github.io'><img src='https://img.shields.io/badge/Project-Page-Green'></a> <a href='https://arxiv.org/abs/2310.09478.pdf'><img src='https://img.shields.io/badge/Paper-Arxiv-red'></a>  <a href='https://huggingface.co/spaces/Vision-CAIR/MiniGPT-v2'><img src='https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue'> <a href='https://minigpt-v2.github.io'><img src='https://img.shields.io/badge/Gradio-Demo-blue'></a> [![YouTube](https://badges.aleen42.com/src/youtube.svg)](https://www.youtube.com/watch?v=atFCwV2hSY4)
 
 
 <font size='5'> **MiniGPT-4: Enhancing Vision-language Understanding with Advanced Large Language Models**</font>
@@ -15,14 +78,91 @@ Deyao Zhu*, Jun Chen*, Xiaoqian Shen, Xiang Li, Mohamed Elhoseiny
 
 *equal contribution
 
-<a href='https://minigpt-4.github.io'><img src='https://img.shields.io/badge/Project-Page-Green'></a>  <a href='https://arxiv.org/abs/2304.10592'><img src='https://img.shields.io/badge/Paper-Arxiv-red'></a> <a href='https://huggingface.co/spaces/Vision-CAIR/minigpt4'><img src='https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue'></a> <a href='https://huggingface.co/Vision-CAIR/MiniGPT-4'><img src='https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue'></a> [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1OK4kYsZphwt5DXchKkzMBjYF6jnkqh4R?usp=sharing) [![YouTube](https://badges.aleen42.com/src/youtube.svg)](https://www.youtube.com/watch?v=__tftoxpBAw&feature=youtu.be)
-
 *King Abdullah University of Science and Technology*
+
+## Modifications made
+
+
+We made the following modifications from the original:
+Inference files for the command lines:
+- demo_v2_command_line.py
+- demo_v1_command_line.py
+
+We add dataset files inside of: ~/FaceGPT/Archive/MiniGPT-4/minigpt4/datasets/datasets :
+- sharegpt_dataset.py
+- chatgpt4vision_datasets.py
+
+We add train configs files inside of: ~/FaceGPT/Archive/MiniGPT-4/train_configs :
+- minigpt4_stage2_finetune_gpt4vision.yaml
+- minigptv2_finetune_gpt4vision.yaml
+
+We add folders to contain the configurations files for the training files path,
+to be found at:  ~/FaceGPT/Archive/MiniGPT-4/minigpt4/configs/datasets/ :
+- chatgpt4vision
+- sharegpt
+
+Inside of the file MiniGPT-4/minigpt4/datasets/builders/image_text_pair_builder.py :
+- we need a wrapper builder class for each of the finetuning dataset (ShareGPT_Face and FaceGPT4Vision) 
+
+We then put of our data, inside of /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data
+
+For each dataset:
+-  we have the ShareGPT Data with images annotated by GPT4Vision and/or the ShareCaptioner by the ShareGPT:
+Number of images in each file:
+subset_objects_gpt4vision_100k.json: 19514 images
+subset_objects_share-captioner_coco_lcs_sam_1246k_1107.json: 17754 images
+
+Number of overlapping image paths: 17759
+
+- We have the GPT4VisionDataset that we have collected by sending images to OpenAI's API for annotations:
+We have the subsections:
+Object counts in gpt4VisionCalls_Cleaned_BySection.json:
+Pre-Prompt: 4 objects
+Facial Expression due to contextual cues: 1497 objects
+Facial Characteristics Long: 1511 objects
+Factual Generalization: 1246 objects
+Mouvement Description: 349 objects
+Interpretative Generalization: 1346 objects
+Intensity of the emotion: 1584 objects
+Posture: 739 objects
+Race: 1188 objects
+Race and Gender: 192 objects
+Facial Characteristics Short : 196 objects
+Gender: 1205 objects
+Human or not: 1182 objects
+Feature by Feature Description: 766 objects
+Fitzpatrick: 94 objects
+Multi-Person Interaction: 0 objects
+
+
+The train loop is executed inside of MiniGPT-4/minigpt4/task/base_task.py
+
+We modify the files MiniGPT-4/train_configs/minigptv2_finetune_gpt4vision.yaml
+to lower the number of workerrs for training to 1, and set the number of
+ gradient accumulations from 1 to 8
+
+
+
+In the file: MiniGPT-4/minigpt4/models/minigpt_base.py
+we modify to         return {"loss": loss,"output s": outputs} # modifications by VF
+Such that we can delete outputs to save RAM space
+We can then delete it in MiniGPT-4/minigpt4/task/base_task.py
+- we modify the function train_step(self, model, samples)
+- _train_inner_loop
+
+
+we try a last thing by adding this as export:
+export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+
+
+
 
 ## 💡 Get help - [Q&A](https://github.com/Vision-CAIR/MiniGPT-4/discussions/categories/q-a) or [Discord 💬](https://discord.gg/5WdJkjbAeE)
 
 <font size='4'> **Example Community Efforts Built on Top of MiniGPT-4 ** </font> 
   
+  <a href='https://minigpt-4.github.io'><img src='https://img.shields.io/badge/Project-Page-Green'></a>  <a href='https://arxiv.org/abs/2304.10592'><img src='https://img.shields.io/badge/Paper-Arxiv-red'></a> <a href='https://huggingface.co/spaces/Vision-CAIR/minigpt4'><img src='https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue'></a> <a href='https://huggingface.co/Vision-CAIR/MiniGPT-4'><img src='https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Model-blue'></a> [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/drive/1OK4kYsZphwt5DXchKkzMBjYF6jnkqh4R?usp=sharing) [![YouTube](https://badges.aleen42.com/src/youtube.svg)](https://www.youtube.com/watch?v=__tftoxpBAw&feature=youtu.be)
+
 * <a href='https://github.com/waltonfuture/InstructionGPT-4?tab=readme-ov-file'><img src='https://img.shields.io/badge/Project-Page-Green'></a> **InstructionGPT-4**: A 200-Instruction Paradigm for Fine-Tuning MiniGPT-4 Lai Wei, Zihao Jiang, Weiran Huang, Lichao Sun, Arxiv, 2023
 
 * <a href='https://openaccess.thecvf.com/content/ICCV2023W/CLVL/papers/Aubakirova_PatFig_Generating_Short_and_Long_Captions_for_Patent_Figures_ICCVW_2023_paper.pdf'><img src='https://img.shields.io/badge/Project-Page-Green'></a> **PatFig**: Generating Short and Long Captions for Patent Figures.", Aubakirova, Dana, Kim Gerdes, and Lufei Liu, ICCVW, 2023 

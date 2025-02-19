@@ -28,6 +28,7 @@ from minigpt4.datasets.datasets.coco_caption import COCOCapDataset
 #######################################################################################
 from minigpt4.datasets.datasets.sharegpt_dataset import ShareGptDetailDataset
 from minigpt4.datasets.datasets.chatgpt4vision_datasets import Gpt4VisionFaceDetailDataset
+from minigpt4.datasets.datasets.41kRealisticEmotions_datasets import RealisticEmotionsDetailDataset
 
 #################################################################################################
 
@@ -162,6 +163,44 @@ class ShareGptDetailBuilder(BaseDatasetBuilder):
 @registry.register_builder("gpt4visionface_detail")
 class Gpt4VisionFaceDetailBuilder(BaseDatasetBuilder):
     train_dataset_cls = Gpt4VisionFaceDetailDataset
+    DATASET_CONFIG_DICT = {
+        "default": "configs/datasets/chatgpt4vision/facedetail.yaml", # .yaml for the sharegpt
+    }
+
+    def build_datasets(self):
+        # at this point, all the annotations and image/videos should be all downloaded to the specified locations.
+        logging.info("Building datasets...")
+        self.build_processors()
+        build_info = self.config.build_info
+        print(build_info)
+        datasets = dict()
+
+        # create datasets
+        dataset_cls = self.train_dataset_cls
+        datasets['train'] = dataset_cls(
+            vis_processor=self.vis_processors["train"],
+            text_processor=self.text_processors["train"],
+            ann_path=build_info.ann_path,
+            vis_root=build_info.image_path,
+            subsets_prompts = build_info.subsets_prompts
+        )
+
+        return datasets
+    
+#################################################################################################
+#   
+# Modification by ValerianFourel:
+# we need to register the shareGPT dataset to the Registry (Singleton Pattern). We will add here.
+# modification to be made to match the design of LlaVA closely.
+# Here we have the second dataset that We want to build. That is the Gpt4VisionFace Dataset.
+#
+#################################################################################################
+
+
+
+@registry.register_builder("gpt4visionface_detail")
+class RealisticEmotionsDetailBuilder(BaseDatasetBuilder):
+    train_dataset_cls = RealisticEmotionsDetailDataset
     DATASET_CONFIG_DICT = {
         "default": "configs/datasets/chatgpt4vision/facedetail.yaml", # .yaml for the sharegpt
     }

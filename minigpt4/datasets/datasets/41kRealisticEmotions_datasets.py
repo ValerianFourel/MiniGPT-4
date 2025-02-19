@@ -27,7 +27,7 @@ import webdataset as wds
 from minigpt4.datasets.datasets.base_dataset import BaseDataset
 from minigpt4.datasets.datasets.caption_datasets import CaptionDataset
 
-class ShareGptDetailDataset(Dataset):
+class RealisticEmotionsDetailDataset(Dataset):
     def __init__(self, vis_processor, text_processor, vis_root, ann_path):
         """
         vis_root (string): Root directory of images (e.g. coco/images/)

@@ -198,7 +198,7 @@ class Gpt4VisionFaceDetailBuilder(BaseDatasetBuilder):
 
 
 
-@registry.register_builder("gpt4visionface_detail")
+@registry.register_builder("RealisticEmotions_detail")
 class RealisticEmotionsDetailBuilder(BaseDatasetBuilder):
     train_dataset_cls = RealisticEmotionsDetailDataset
     DATASET_CONFIG_DICT = {

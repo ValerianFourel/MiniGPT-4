@@ -1,5 +1,5 @@
 datasets:
-  sharegpt_detail:
+  RealisticEmotions_detail:
     data_type: images
     build_info:
       image_path: /fast/vfourel/FaceGPT/Data/MiniFaceGPT4Data/RealisticEmotionsData/Images

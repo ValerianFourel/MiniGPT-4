@@ -202,7 +202,7 @@ class Gpt4VisionFaceDetailBuilder(BaseDatasetBuilder):
 class RealisticEmotionsDetailBuilder(BaseDatasetBuilder):
     train_dataset_cls = RealisticEmotionsDetailDataset
     DATASET_CONFIG_DICT = {
-        "default": "configs/datasets/chatgpt4vision/facedetail.yaml", # .yaml for the sharegpt
+        "default": "configs/datasets/realisticEmotions/facedetail.yaml", # .yaml for the sharegpt
     }
 
     def build_datasets(self):

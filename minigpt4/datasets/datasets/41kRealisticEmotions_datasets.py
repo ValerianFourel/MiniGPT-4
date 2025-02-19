@@ -27,19 +27,87 @@ import webdataset as wds
 from minigpt4.datasets.datasets.base_dataset import BaseDataset
 from minigpt4.datasets.datasets.caption_datasets import CaptionDataset
 
+label_questions = [
+            "What is the <EMOTION> in this image?",
+            "Which <EMOTION> is being displayed here?",
+            "Can you identify the <EMOTION> in this picture?",
+            "What <EMOTION> does this image show?",
+            "What's the primary <EMOTION> depicted?",
+            "Which <EMOTION> is most prominent here?",
+            "What <EMOTION> best categorizes this image?",
+            "What single <EMOTION> describes this scene?",
+            "Which <EMOTION> label fits this image?",
+            "What's the main <EMOTION> captured here?",
+            "Identify the <EMOTION> shown in this image.",
+            "What <EMOTION> classification suits this picture?",
+            "What's the dominant <EMOTION> present?",
+            "Which <EMOTION> tag applies to this image?",
+            "What <EMOTION> category does this belong to?",
+            "<EMOTION>"
+        ]
+
+
+description_questions = [
+            "How would you describe the emotional tone of this picture?",
+            "What feelings and emotions does this image convey?",
+            "Describe the emotional atmosphere in this scene.",
+            "What emotional response does this image evoke?",
+            "How would you characterize the emotional content here?",
+            "Describe the emotional impact of this image.",
+            "What is the emotional narrative in this picture?",
+            "How does this image make you feel emotionally?",
+            "What emotional story does this image tell?",
+            "Describe the emotional state portrayed here.",
+            "What emotions and feelings are expressed in this image?",
+            "How would you explain the emotional context of this scene?",
+            "What is the emotional significance of this image?",
+            "Describe the emotional undertones in this picture.",
+            "What emotional experience does this image capture?",
+            "How would you detail the emotional essence here?",
+            "What emotional qualities are present in this image?",
+            "Describe the emotional depth of this scene.",
+            "What emotional message does this image communicate?",
+            "How would you interpret the emotional meaning here?"
+        ]
+
 class RealisticEmotionsDetailDataset(Dataset):
-    def __init__(self, vis_processor, text_processor, vis_root, ann_path):
+    def __init__(self, vis_processor, text_processor, vis_root, ann_path, 
+                 question_sampling_ratio=1.0, answer_type_ratio=1.0):
         """
         vis_root (string): Root directory of images (e.g. coco/images/)
-        ann_root (string): directory to store the annotation file
+        ann_path (string): path to the JSON annotation file
+        question_sampling_ratio (float): Ratio of questions to use (0.0 to 1.0)
+        answer_type_ratio (float): Ratio of full descriptions vs single labels
         """
         self.vis_root = vis_root
-
         self.vis_processor = vis_processor
         self.text_processor = text_processor
+        self.answer_type_ratio = max(0.0, min(1.0, answer_type_ratio))
 
+        # Questions for emotion labels (using <EMOTION> placeholder)
+        self.label_questions = label_questions
+
+        # Questions for emotional descriptions
+        self.description_questions = description_questions
+
+        # Sample questions based on the ratio
+        num_label_questions = max(1, int(len(self.label_questions) * question_sampling_ratio))
+        num_desc_questions = max(1, int(len(self.description_questions) * question_sampling_ratio))
+
+        self.label_questions = random.sample(self.label_questions, num_label_questions)
+        self.description_questions = random.sample(self.description_questions, num_desc_questions)
+
+        # Load and process annotations
         with open(ann_path, 'r') as f:
-            self.ann = json.load(f)
+            data = json.load(f)
+            self.ann = []
+            for path, value in data.items():
+                first_word = value.strip().split()[0]
+                self.ann.append({
+                    'image': path,
+                    'emotion_desc': value,
+                    'emotion_label': first_word
+                })
 
     def __len__(self):
         return len(self.ann)
@@ -47,19 +115,25 @@ class RealisticEmotionsDetailDataset(Dataset):
     def __getitem__(self, index):
         info = self.ann[index]
 
-        image_file = info['image']
-        image_path = os.path.join(self.vis_root, image_file)
+        # Load and process image
+        image_path = os.path.join(self.vis_root, info['image'])
         image = Image.open(image_path).convert("RGB")
         image = self.vis_processor(image)
 
-        answer = info['conversations'][1]['value']
-        instruction = info['conversations'][0]['value'].replace('<image>', '').replace('\n', '').strip()
-        
+        # Choose between description and label based on ratio
+        if random.random() < self.answer_type_ratio:
+            instruction = random.choice(self.description_questions)
+            answer = info['emotion_desc']
+        else:
+            instruction = random.choice(self.label_questions)
+            answer = info['emotion_label']
+
+        # Format instruction with image placeholder
         instruction = '<Img><ImageHere></Img> {} '.format(self.text_processor(instruction))
 
         return {
             "image": image,
             "instruction_input": instruction,
             "answer": answer,
-            "image_id": info['id'],
+            "image_id": index,
         }

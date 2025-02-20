@@ -77,3 +77,6 @@ run:
 
   wandb_log: True
   job_name: minigptv2_finetune
+  fsdp_enabled: True  # Custom flag to toggle FSDP (optional)
+  fsdp_sharding_strategy: "FULL_SHARD"  # Match code
+  fsdp_mixed_precision: "fp16"  # Match code

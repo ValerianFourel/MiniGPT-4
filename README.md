@@ -154,7 +154,34 @@ We can then delete it in MiniGPT-4/minigpt4/task/base_task.py
 we try a last thing by adding this as export:
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
+### Dataset Configuration
+This project uses three datasets for training the MiniGPT-v2 model: sharegpt_detail, gpt4visionface_detail, and RealisticEmotions_detail. Below is an overview of their configurations and sampling strategies:
+Dataset
+s
+sharegpt_detail
+Batch Size: 1
+Vision Processor: blip2_image_train (image size: 448)
+Text Processor: blip_caption
+Sample Ratio: 30
+Notes: This dataset uses a sample ratio of 30, which is considered the canonical value for training. This ratio has been established as a stable and effective choice for leveraging the dataset's content in the pretraining and fine-tuning phases.
 
+gpt4visionface_detail
+Batch Size: 1
+Vision Processor: blip2_image_train (image size: 448)
+Text Processor: blip_caption
+Sample Ratio: 10
+Notes: With a sample ratio of 10, this dataset also adopts a canonical sampling rate. This value balances its contribution to the training process, ensuring it complements sharegpt_detail without overwhelming the model.
+
+RealisticEmotions_detail
+Batch Size: 1
+Vision Processor: blip2_image_train (image size: 448)
+Text Processor: blip_caption
+Sample Ratio: 20
+Notes: This dataset is currently in a trial phase. The sample ratio of 20 is experimental and subject to adjustment as we evaluate its impact on model performance. Unlike the canonical ratios for sharegpt_detail and gpt4visionface_detail, this value is still under review.
+
+### Sampling Strategy
+The sample_ratio parameter determines how frequently each dataset is sampled during training relative to a baseline rate. The canonical ratios (30 for sharegpt_detail and 10 for gpt4visionface_detail) have been tested and validated for optimal performance in our workflow. Meanwhile, RealisticEmotions_detail is being trialed with a ratio of 20 to assess its effectiveness, and further tuning may occur based on experimental results.
+For more details on the training configuration, refer to the main configuration file.
 
 
 ## 💡 Get help - [Q&A](https://github.com/Vision-CAIR/MiniGPT-4/discussions/categories/q-a) or [Discord 💬](https://discord.gg/5WdJkjbAeE)

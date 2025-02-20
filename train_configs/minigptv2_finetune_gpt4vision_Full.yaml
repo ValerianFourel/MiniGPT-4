@@ -23,7 +23,7 @@ datasets:
     text_processor:
       train:
         name: "blip_caption"
-    sample_ratio: 0
+    sample_ratio: 30
 
   gpt4visionface_detail:
     batch_size: 1
@@ -34,7 +34,7 @@ datasets:
     text_processor:
       train:
         name: "blip_caption"
-    sample_ratio: 0
+    sample_ratio: 10
 
   RealisticEmotions_detail:
     batch_size: 1
@@ -45,7 +45,7 @@ datasets:
     text_processor:
       train:
         name: "blip_caption"
-    sample_ratio: 10
+    sample_ratio: 20
 
 run:
   task: image_text_pretrain

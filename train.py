@@ -31,7 +31,10 @@ from minigpt4.models import *
 from minigpt4.processors import *
 from minigpt4.runners import *
 from minigpt4.tasks import *
-
+#================================
+# Stitch Val
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+#================================
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Training")
@@ -70,12 +73,24 @@ def get_runner_class(cfg):
 
 
 def main():
+    ###################################################################################################
+    #
+    # Valerian Fourel:
+    #   We want to optimize the usage of the meory one of the method found is the following:
+    # We set the maximum amount of memory which may be used by a single GPU.
+    # 
+    #
+    ####################################################################################################
+
+
+    ##################################################################################################
     # allow auto-dl completes on main process without timeout when using NCCL backend.
-    # os.environ["NCCL_BLOCKING_WAIT"] = "1"
+    os.environ["NCCL_BLOCKING_WAIT"] = "1"
 
     # set before init_distributed_mode() to ensure the same job_id shared across all ranks.
     job_id = now()
     args = parse_args()
+    print(args)
     cfg = Config(args)
 
     init_distributed_mode(cfg.run_cfg)
@@ -86,8 +101,13 @@ def main():
     cfg.pretty_print()
 
     task = tasks.setup_task(cfg)
+    print(task)
+    print('here1\n')
     datasets = task.build_datasets(cfg)
+    print('here2\n')
+
     model = task.build_model(cfg)
+    print('here3\n')
 
     if cfg.run_cfg.wandb_log:
         wandb.login()

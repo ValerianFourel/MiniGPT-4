@@ -27,6 +27,7 @@ from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
 from torch.distributed.fsdp import MixedPrecision
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 from transformers.models.clip.modeling_clip import CLIPEncoderLayer
+import functools
 
 # Imports for registration
 from minigpt4.datasets.builders import *
@@ -72,10 +73,10 @@ def main():
 
     job_id = now()
     args = parse_args()
-    print(args)
+    print(f"Arguments: {args}")
     cfg = Config(args)
 
-    # Initialize distributed mode (required for FSDP)
+    # Initialize distributed mode (compatible with torchrun)
     init_distributed_mode(cfg.run_cfg)
     rank = get_rank()
     device = torch.device(f"cuda:{rank}")
@@ -86,7 +87,7 @@ def main():
     cfg.pretty_print()
 
     task = tasks.setup_task(cfg)
-    print(task)
+    print(f"Task: {task}")
     print('here1\n')
     datasets = task.build_datasets(cfg)
     print('here2\n')
@@ -95,29 +96,34 @@ def main():
     model = task.build_model(cfg).to(device)
     print('here3\n')
 
-    # Define FSDP wrapping policy for transformer layers (renamed for clarity)
-    fsdp_wrap_policy = transformer_auto_wrap_policy(
-        module=model,
-        recurse=True,           # Recursively wrap transformer layers
-        nonwrapped_numel=10000, # Don’t wrap layers with fewer than 10k parameters
+    # Define FSDP wrapping policy using functools.partial
+    fsdp_wrap_policy = functools.partial(
+        transformer_auto_wrap_policy,
         transformer_layer_cls={
             LlamaDecoderLayer,  # LLaMA transformer layer
             CLIPEncoderLayer,   # CLIP-ViT transformer layer (for eva_clip_g)
-        }
+        },
+        recurse=True,       # Recursively wrap transformer layers
+    )
+
+    # Apply the policy with model-specific arguments
+    wrapped_policy = fsdp_wrap_policy(
+        module=model,
+        nonwrapped_numel=10000,  # Don’t wrap layers with fewer than 10k parameters
     )
 
     # Wrap the model with FSDP
     model = FSDP(
         model,
-        auto_wrap_policy=fsdp_wrap_policy,  # Use the explicitly defined policy
-        sharding_strategy="FULL_SHARD",     # Shard params, grads, and optimizer states
+        auto_wrap_policy=wrapped_policy,
+        sharding_strategy="FULL_SHARD",
         device_id=device,
         mixed_precision=MixedPrecision(
-            param_dtype=torch.float16,      # Use FP16 for params (V100 supports FP16)
-            reduce_dtype=torch.float16,     # Reduce gradients in FP16
-            buffer_dtype=torch.float16      # Buffers in FP16
+            param_dtype=torch.float16,
+            reduce_dtype=torch.float16,
+            buffer_dtype=torch.float16
         ),
-        sync_module_states=True             # Ensure all ranks start with same weights
+        sync_module_states=True
     )
 
     if cfg.run_cfg.wandb_log:

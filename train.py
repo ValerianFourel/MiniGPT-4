@@ -24,7 +24,8 @@ from minigpt4.common.registry import registry
 from minigpt4.common.utils import now
 from torch.distributed.fsdp import FullyShardedDataParallel as FSDP
 from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
-from torch.distributed.fsdp import MixedPrecision
+from torch.distributed.fsdp import MixedPrecision, ShardingStrategy
+from torch.distributed.fsdp.fully_sharded_data_parallel import CPUOffload
 from transformers.models.llama.modeling_llama import LlamaDecoderLayer
 from transformers.models.clip.modeling_clip import CLIPEncoderLayer
 import functools
@@ -36,8 +37,7 @@ from minigpt4.processors import *
 from minigpt4.runners import *
 from minigpt4.tasks import *
 
-# Set environment variable for memory optimization
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:64'
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Training")
@@ -60,23 +60,25 @@ def setup_seeds(config):
     cudnn.deterministic = True
 
 def get_runner_class(cfg):
-    """
-    Get runner class from config. Default to epoch-based runner.
-    """
     runner_cls = registry.get_runner_class(cfg.run_cfg.get("runner", "runner_base"))
     return runner_cls
 
+def clear_gpu_memory():
+    torch.cuda.empty_cache()
+    import gc
+    gc.collect()
+
 def main():
-    # Set environment variables
     os.environ["NCCL_BLOCKING_WAIT"] = "1"
-    os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+    os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:64'
+
+    clear_gpu_memory()
 
     job_id = now()
     args = parse_args()
     print(f"Arguments: {args}")
     cfg = Config(args)
 
-    # Initialize distributed mode (compatible with torchrun)
     init_distributed_mode(cfg.run_cfg)
     rank = get_rank()
     device = torch.device(f"cuda:{rank}")
@@ -92,38 +94,61 @@ def main():
     datasets = task.build_datasets(cfg)
     print('here2\n')
 
-    # Build the model
-    model = task.build_model(cfg).to(device)
+    # Build model with LoRA enabled via config
+    model = task.build_model(cfg)
     print('here3\n')
 
-    # Define FSDP wrapping policy using functools.partial
+    # Force all parameters and buffers to FP16
+    model = model.to(dtype=torch.float16)  # Convert parameters to FP16
+    for buffer in model.buffers():
+        buffer.data = buffer.data.to(dtype=torch.float16)  # Convert buffers to FP16
+
+    # Freeze all base parameters (LoRA adapters will remain trainable)
+    trainable_params = 0
+    total_params = 0
+    for name, param in model.named_parameters():
+        if "lora" not in name.lower():  # Freeze non-LoRA parameters
+            param.requires_grad = False
+        else:
+            trainable_params += param.numel()
+        total_params += param.numel()
+
+    # Debug: Print parameter status, counts, and dtypes
+    if rank == 0:
+        print(f"Total parameters: {total_params}")
+        print(f"Trainable parameters (LoRA): {trainable_params}")
+        for name, param in model.named_parameters():
+            print(f"{name}: requires_grad={param.requires_grad}, dtype={param.dtype}, device={param.device}")
+        for name, buffer in model.named_buffers():
+            print(f"Buffer {name}: dtype={buffer.dtype}, device={buffer.device}")
+
+    # Ensure all parameters are on CPU before FSDP (already FP16)
+    model = model.to('cpu')
+
+    # Define FSDP wrapping policy with functools.partial
     fsdp_wrap_policy = functools.partial(
         transformer_auto_wrap_policy,
         transformer_layer_cls={
-            LlamaDecoderLayer,  # LLaMA transformer layer
-            CLIPEncoderLayer,   # CLIP-ViT transformer layer (for eva_clip_g)
+            LlamaDecoderLayer,
+            CLIPEncoderLayer,
         },
-        recurse=True,       # Recursively wrap transformer layers
+        recurse=True,
     )
 
-    # Apply the policy with model-specific arguments
-    wrapped_policy = fsdp_wrap_policy(
-        module=model,
-        nonwrapped_numel=10000,  # Don’t wrap layers with fewer than 10k parameters
-    )
-
-    # Wrap the model with FSDP
+    # Wrap with FSDP for sharding across 7 GPUs
     model = FSDP(
         model,
-        auto_wrap_policy=wrapped_policy,
-        sharding_strategy="FULL_SHARD",
+        auto_wrap_policy=fsdp_wrap_policy,
+        sharding_strategy=ShardingStrategy.SHARD_GRAD_OP,
         device_id=device,
         mixed_precision=MixedPrecision(
-            param_dtype=torch.float16,
-            reduce_dtype=torch.float16,
-            buffer_dtype=torch.float16
+            param_dtype=torch.float16,  # Reinforce FP16 for parameters
+            reduce_dtype=torch.float16,  # FP16 for gradient reduction
+            buffer_dtype=torch.float16  # FP16 for buffers
         ),
-        sync_module_states=True
+        cpu_offload=CPUOffload(offload_params=True),
+        sync_module_states=True,
+        use_orig_params=True,  # Allow mixed requires_grad
     )
 
     if cfg.run_cfg.wandb_log:

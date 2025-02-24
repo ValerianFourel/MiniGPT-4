@@ -18,7 +18,7 @@ import wandb
 #================================
 # Stitch Val
 import gc
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:64'
 #================================
 class BaseTask:
     def __init__(self, **kwargs):

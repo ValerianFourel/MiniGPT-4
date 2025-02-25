@@ -30,7 +30,7 @@ from minigpt4.datasets.datasets.dataloader_utils import (
     MultiIterLoader,
     PrefetchLoader,
 )
-from torch.nn.parallel import DistributedDataParallel as DDP
+# Remove DDP import since we're not using it
 from torch.utils.data import DataLoader, DistributedSampler
 
 
@@ -39,8 +39,7 @@ class RunnerBase:
     """
     A runner class to train and evaluate a model given a task and datasets.
 
-    The runner uses pytorch distributed data parallel by default. Future release
-    will support other distributed frameworks.
+    This version uses FSDP for distributed training and does not use DDP.
     """
 
     def __init__(self, cfg, task, model, datasets, job_id):
@@ -51,8 +50,6 @@ class RunnerBase:
         self.datasets = datasets
 
         self._model = model
-
-        self._wrapped_model = None
         self._device = None
         self._optimizer = None
         self._scaler = None
@@ -68,36 +65,36 @@ class RunnerBase:
     def device(self):
         if self._device is None:
             self._device = torch.device(self.config.run_cfg.device)
-
         return self._device
 
     @property
     def use_distributed(self):
         return self.config.run_cfg.distributed
 
+        # In your runner_base.py file:
     @property
     def model(self):
         """
-        A property to get the DDP-wrapped model on the device.
+        A property to get the model on the device.
+        Skip device movement for FSDP models with CPU offloading.
         """
-        # move model to device
-        if self._model.device != self.device:
+        # Check if model is using FSDP with CPU offloading
+        is_fsdp_cpu_offload = (
+            hasattr(self._model, '_is_root') and 
+            hasattr(self._model, '_fsdp_wrapped_module') and
+            hasattr(self._model, 'cpu_offload') and
+            self._model.cpu_offload.offload_params
+        )
+
+        # Only move to device if not using FSDP with CPU offloading
+        if not is_fsdp_cpu_offload and self._model.device != self.device:
             self._model = self._model.to(self.device)
 
-            # distributed training wrapper
-            if self.use_distributed:
-                if self._wrapped_model is None:
-                    self._wrapped_model = DDP(
-                        self._model, device_ids=[self.config.run_cfg.gpu], find_unused_parameters=True
-                    )
-            else:
-                self._wrapped_model = self._model
+        return self._model
 
-        return self._wrapped_model
 
     @property
     def optimizer(self):
-        # TODO make optimizer class and configurations
         if self._optimizer is None:
             num_parameters = 0
             p_wd, p_non_wd = [], []
@@ -146,11 +143,8 @@ class RunnerBase:
         if self._lr_sched is None:
             lr_sched_cls = registry.get_lr_scheduler_class(self.config.run_cfg.lr_sched)
 
-            # max_epoch = self.config.run_cfg.max_epoch
             max_epoch = self.max_epoch
-            # min_lr = self.config.run_cfg.min_lr
             min_lr = self.min_lr
-            # init_lr = self.config.run_cfg.init_lr
             init_lr = self.init_lr
 
             # optional parameters
@@ -182,26 +176,8 @@ class RunnerBase:
     def dataloaders(self) -> dict:
         """
         A property to get and create dataloaders by split just in need.
-
-        If no train_dataset_ratio is provided, concatenate map-style datasets and
-        chain wds.DataPipe datasets separately. Training set becomes a tuple
-        (ConcatDataset, ChainDataset), both are optional but at least one of them is
-        required. The resultant ConcatDataset and ChainDataset will be sampled evenly.
-
-        If train_dataset_ratio is provided, create a MultiIterLoader to sample
-        each dataset by ratios during training.
-
-        Currently do not support multiple datasets for validation and test.
-
-        Returns:
-            dict: {split_name: (tuples of) dataloader}
         """
         if self._dataloaders is None:
-
-            # concatenate map-style datasets and chain wds.DataPipe datasets separately
-            # training set becomes a tuple (ConcatDataset, ChainDataset), both are
-            # optional but at least one of them is required. The resultant ConcatDataset
-            # and ChainDataset will be sampled evenly.
             logging.info(
                 "dataset_ratios not specified, datasets will be concatenated (map-style datasets) or chained (webdataset.DataPipeline)."
             )
@@ -210,7 +186,6 @@ class RunnerBase:
                            for dataset_name in self.datasets.keys()}
             datasets, batch_sizes = reorg_datasets_by_split(self.datasets, batch_sizes)
             self.datasets = datasets
-            # self.datasets = concat_datasets(datasets)
 
             # print dataset statistics after concatenation/chaining
             for split_name in self.datasets:
@@ -310,7 +285,6 @@ class RunnerBase:
     @property
     def test_splits(self):
         test_splits = self.config.run_cfg.get("test_splits", [])
-
         return test_splits
 
     @property
@@ -340,14 +314,12 @@ class RunnerBase:
     @property
     def train_loader(self):
         train_dataloader = self.dataloaders["train"]
-
         return train_dataloader
 
     def setup_output_dir(self):
         lib_root = Path(registry.get_path("library_root"))
 
         output_dir = lib_root / self.config.run_cfg.output_dir / self.job_id
-        # output_dir = lib_root / self.config.run_cfg.output_dir
         result_dir = output_dir / "result"
 
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -394,7 +366,6 @@ class RunnerBase:
                             agg_metrics = val_log["agg_metrics"]
                             if agg_metrics > best_agg_metric and split_name == "val":
                                 best_epoch, best_agg_metric = cur_epoch, agg_metrics
-
                                 self._save_checkpoint(cur_epoch, is_best=True)
 
                             val_log.update({"best_epoch": best_epoch})
@@ -450,22 +421,16 @@ class RunnerBase:
     def eval_epoch(self, split_name, cur_epoch, skip_reload=False):
         """
         Evaluate the model on a given split.
-
-        Args:
-            split_name (str): name of the split to evaluate on.
-            cur_epoch (int): current epoch.
-            skip_reload_best (bool): whether to skip reloading the best checkpoint.
-                During training, we will reload the best checkpoint for validation.
-                During testing, we will use provided weights and skip reloading the best checkpoint .
         """
         data_loader = self.dataloaders.get(split_name, None)
         assert data_loader, "data_loader for split {} is None.".format(split_name)
 
-        # TODO In validation, you need to compute loss as well as metrics
-        # TODO consider moving to model.before_evaluation()
+        # Get the model - unwrap if it's wrapped with FSDP
         model = self.unwrap_dist_model(self.model)
+
         if not skip_reload and cur_epoch == "best":
             model = self._reload_best_model(model)
+
         model.eval()
 
         self.task.before_evaluation(
@@ -482,10 +447,12 @@ class RunnerBase:
             )
 
     def unwrap_dist_model(self, model):
-        if self.use_distributed:
+        """
+        Unwrap the model if it's wrapped with FSDP
+        """
+        if hasattr(model, 'module'):
             return model.module
-        else:
-            return model
+        return model
 
     def create_loaders(
         self,
@@ -518,7 +485,6 @@ class RunnerBase:
             else:
                 # map-style dataset are concatenated together
                 # setup distributed sampler
-
                 if self.use_distributed:
                     sampler = DistributedSampler(
                         dataset,
@@ -634,7 +600,7 @@ class RunnerBase:
             raise RuntimeError("checkpoint url or path is invalid")
 
         state_dict = checkpoint["model"]
-        message = self.unwrap_dist_model(self.model).load_state_dict(state_dict,strict=False)
+        message = self.unwrap_dist_model(self.model).load_state_dict(state_dict, strict=False)
 
         self.optimizer.load_state_dict(checkpoint["optimizer"])
         if self.scaler and "scaler" in checkpoint:

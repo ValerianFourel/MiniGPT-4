@@ -90,13 +90,10 @@ def main():
 
     task = tasks.setup_task(cfg)
     print(f"Task: {task}")
-    print('here1\n')
     datasets = task.build_datasets(cfg)
-    print('here2\n')
 
     # Build model with LoRA enabled via config
     model = task.build_model(cfg)
-    print('here3\n')
 
     # Force all parameters and buffers to FP16
     model = model.to(dtype=torch.float16)  # Convert parameters to FP16
@@ -122,8 +119,6 @@ def main():
         for name, buffer in model.named_buffers():
             print(f"Buffer {name}: dtype={buffer.dtype}, device={buffer.device}")
 
-    # Ensure all parameters are on CPU before FSDP (already FP16)
-    model = model.to('cpu')
 
     # Define FSDP wrapping policy with functools.partial
     fsdp_wrap_policy = functools.partial(
@@ -134,6 +129,8 @@ def main():
         },
         recurse=True,
     )
+    # Get the device for FSDP
+    device = torch.device(f"cuda:{rank}")
 
     # Wrap with FSDP for sharding across 7 GPUs
     model = FSDP(
@@ -155,6 +152,7 @@ def main():
         wandb.login()
         wandb.init(project="minigptv", name=cfg.run_cfg.job_name)
         wandb.watch(model)
+    
 
     runner = get_runner_class(cfg)(
         cfg=cfg, job_id=job_id, task=task, model=model, datasets=datasets

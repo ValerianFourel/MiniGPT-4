@@ -128,7 +128,7 @@ class RunnerBase:
 
     @property
     def scaler(self):
-        amp = self.config.run_cfg.get("amp", False)
+        amp = self.config.run_cfg.get("amp", True)
 
         if amp:
             if self._scaler is None:

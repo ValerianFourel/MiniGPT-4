@@ -238,6 +238,8 @@ class BaseTask:
             # We need to empty the cache()
             torch.cuda.empty_cache()
             samples = prepare_sample(samples, cuda_enabled=cuda_enabled)
+            # samples = check_and_normalize_data(samples) # Added by VF
+ 
             samples.update(
                 {
                     "epoch": inner_epoch,
@@ -261,13 +263,12 @@ class BaseTask:
                 scaled_loss.backward()
             else:
                 loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.25)
             # In _train_inner_loop after computing loss
             if torch.isnan(loss) or torch.isinf(loss):
                 logging.warning(f"NaN or Inf loss detected at epoch {epoch}, iter {i}. Skipping.")
-                continue
-
-
+                optimizer.zero_grad()  # Clear gradients before continuing
+                break
 
             # we now delete the outputs
             del outputs
@@ -283,9 +284,6 @@ class BaseTask:
 
                     # Now you can use unscaled_grads for any custom operations
                     # For example, gradient clipping based on unscaled values:
-                    # grad_norm = torch.norm(torch.stack([torch.norm(g) for g in unscaled_grads if g is not None]))
-                    # if grad_norm > max_norm:
-                    #     # Apply clipping logic here
 
                     # Continue with normal optimizer step
                     try:
@@ -379,3 +377,22 @@ class BaseTask:
             print("result file saved to %s" % final_result_file)
 
         return final_result_file
+
+
+def check_and_normalize_data(samples):
+    """Check for and handle extreme values in input data."""
+    for key, value in samples.items():
+        if isinstance(value, torch.Tensor) and value.dtype.is_floating_point:
+            # Replace NaN/Inf values
+            if torch.isnan(value).any() or torch.isinf(value).any():
+                logging.warning(f"NaN or Inf detected in input tensor '{key}'")
+                value[torch.isnan(value)] = 0.0
+                value[torch.isinf(value)] = 0.0
+
+            # Check for extreme values and normalize if needed
+            if value.numel() > 0:
+                max_val = value.abs().max().item()
+                if max_val > 1e4:  # If values are extremely large
+                    logging.warning(f"Extreme values detected in '{key}': {max_val}")
+                    value.data = value.data / max_val  # Simple normalization
+    return samples

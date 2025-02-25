@@ -136,11 +136,11 @@ def main():
     model = FSDP(
         model,
         auto_wrap_policy=fsdp_wrap_policy,
-        sharding_strategy=ShardingStrategy.SHARD_GRAD_OP,
+        sharding_strategy=ShardingStrategy.FULL_SHARD,
         device_id=device,
         mixed_precision=MixedPrecision(
             param_dtype=torch.float16,  # Reinforce FP16 for parameters
-            reduce_dtype=torch.bfloat16,  # Change gradient reduction to bfloat16
+            reduce_dtype=torch.float32,  # Change gradient reduction to bfloat16
             buffer_dtype=torch.float16  # FP16 for buffers
         ),
         cpu_offload=CPUOffload(offload_params=True),

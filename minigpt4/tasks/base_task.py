@@ -161,6 +161,31 @@ class BaseTask:
             accum_grad_iters=accum_grad_iters,
         )
 
+    def unscale_gradients(self, scaler, parameters):
+        """
+        Manually unscale gradients for parameters.
+
+        Args:
+            scaler: The GradScaler instance
+            parameters: Iterable of parameters with gradients to unscale
+
+        Returns:
+            List of unscaled gradients
+        """
+        if scaler is None:
+            # If no scaler is used, just return the gradients as they are
+            return [p.grad for p in parameters if p.grad is not None]
+
+        # Get the scale factor from the scaler
+        inv_scale = 1. / scaler.get_scale()
+
+        # Unscale each gradient
+        unscaled_grads = [p.grad * inv_scale if p.grad is not None else None 
+                        for p in parameters]
+
+        return unscaled_grads
+
+
     def _train_inner_loop(
         self,
         epoch,
@@ -177,9 +202,6 @@ class BaseTask:
     ):
         """
         An inner training loop compatible with both epoch-based and iter-based training.
-
-        When using epoch-based, training stops after one epoch; when using iter-based,
-        training stops after #iters_per_epoch iterations.
         """
         use_amp = scaler is not None
 
@@ -225,29 +247,78 @@ class BaseTask:
             )
 
             lr_scheduler.step(cur_epoch=inner_epoch, cur_step=i)
-            # print("samples.keys(): ",len(samples.keys()))
+
+            # Clear gradients at the beginning of each iteration
+            optimizer.zero_grad()
+
             with torch.cuda.amp.autocast(enabled=use_amp):
                 loss, outputs = self.train_step(model=model, samples=samples)
 
-            # after_train_step()
+            # FIX: Make sure we're properly tracking the backward pass with the scaler
             if use_amp:
-                scaler.scale(loss).backward()
+                # Scale the loss and call backward - this is where inf checks are recorded
+                scaled_loss = scaler.scale(loss)
+                scaled_loss.backward()
             else:
                 loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # In _train_inner_loop after computing loss
+            if torch.isnan(loss) or torch.isinf(loss):
+                logging.warning(f"NaN or Inf loss detected at epoch {epoch}, iter {i}. Skipping.")
+                continue
+
+
+
             # we now delete the outputs
             del outputs
+            use_unscaled_grads = False
 
             # update gradients every accum_grad_iters iterations
             if (i + 1) % accum_grad_iters == 0:
-                if use_amp:
-                    scaler.step(optimizer)
-                    scaler.update()                     
+                if use_amp and use_unscaled_grads:
+                    # If you need unscaled gradients for any reason, get them here
+                    # before the optimizer step
+                    trainable_params = [p for p in model.parameters() if p.requires_grad]
+                    unscaled_grads = self.unscale_gradients(scaler, trainable_params)
+
+                    # Now you can use unscaled_grads for any custom operations
+                    # For example, gradient clipping based on unscaled values:
+                    # grad_norm = torch.norm(torch.stack([torch.norm(g) for g in unscaled_grads if g is not None]))
+                    # if grad_norm > max_norm:
+                    #     # Apply clipping logic here
+
+                    # Continue with normal optimizer step
+                    try:
+                        # Unscale gradients for optimizer step
+                        scaler.unscale_(optimizer)
+
+                        # Optional: Clip gradients
+                        # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+                        # Step and update
+                        scaler.step(optimizer)
+                        scaler.update()
+                    except RuntimeError as e:
+                        # Handle "Attempting to unscale FP16 gradients" error
+                        if "Attempting to unscale FP16 gradients" in str(e):
+                            logging.warning("FP16 gradient unscaling error detected. Using manual unscaling.")
+                            # Apply manual updates using unscaled_grads if needed
+                            with torch.no_grad():
+                                for param, grad in zip(trainable_params, unscaled_grads):
+                                    if grad is not None:
+                                        param.data.add_(grad, alpha=-optimizer.param_groups[0]['lr'])
+                        else:
+                            # Re-raise other errors
+                            raise e
                 else:    
                     optimizer.step()
+
                 optimizer.zero_grad()
-                # if self.cfg.wandb_log:
+
+                # Log to wandb if enabled
                 if self.cfg.run_cfg.wandb_log:
-                    wandb.log({"epoch": inner_epoch, "loss": loss,"lr": optimizer.param_groups[0]["lr"] }) # we add this to track the learning rate
+                    wandb.log({"epoch": inner_epoch, "loss": loss.item(), "lr": optimizer.param_groups[0]["lr"]})
+
             metric_logger.update(loss=loss.item())
             metric_logger.update(lr=optimizer.param_groups[0]["lr"])
 
@@ -266,6 +337,8 @@ class BaseTask:
             k: "{:.3f}".format(meter.global_avg)
             for k, meter in metric_logger.meters.items()
         }
+
+
 
     @staticmethod
     def save_result(result, result_dir, filename, remove_duplicate=""):

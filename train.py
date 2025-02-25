@@ -140,7 +140,7 @@ def main():
         device_id=device,
         mixed_precision=MixedPrecision(
             param_dtype=torch.float16,  # Reinforce FP16 for parameters
-            reduce_dtype=torch.float16,  # FP16 for gradient reduction
+            reduce_dtype=torch.bfloat16,  # Change gradient reduction to bfloat16
             buffer_dtype=torch.float16  # FP16 for buffers
         ),
         cpu_offload=CPUOffload(offload_params=True),

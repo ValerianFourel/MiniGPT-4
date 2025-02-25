@@ -125,15 +125,23 @@ class RunnerBase:
 
         return self._optimizer
 
+
     @property
     def scaler(self):
         amp = self.config.run_cfg.get("amp", False)
 
         if amp:
             if self._scaler is None:
-                self._scaler = torch.cuda.amp.GradScaler()
+                # Create a custom GradScaler that allows FP16 gradients
+                class FP16FriendlyGradScaler(torch.cuda.amp.GradScaler):
+                    def _unscale_grads_(self, optimizer, inv_scale, found_inf, allow_fp16=True):
+                        # Override to allow FP16 gradients
+                        return super()._unscale_grads_(optimizer, inv_scale, found_inf, allow_fp16=allow_fp16)
+
+                self._scaler = FP16FriendlyGradScaler()
 
         return self._scaler
+
 
     @property
     def lr_scheduler(self):

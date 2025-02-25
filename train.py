@@ -102,12 +102,9 @@ def main():
 
     task = tasks.setup_task(cfg)
     print(task)
-    print('here1\n')
     datasets = task.build_datasets(cfg)
-    print('here2\n')
 
     model = task.build_model(cfg)
-    print('here3\n')
 
     if cfg.run_cfg.wandb_log:
         wandb.login()

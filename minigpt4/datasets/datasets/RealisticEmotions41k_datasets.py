@@ -27,7 +27,30 @@ import webdataset as wds
 from minigpt4.datasets.datasets.base_dataset import BaseDataset
 from minigpt4.datasets.datasets.caption_datasets import CaptionDataset
 
-label_questions = [
+import os
+import json
+import random
+from PIL import Image
+from torch.utils.data import Dataset
+
+class RealisticEmotionsDetailDataset(Dataset):
+    def __init__(self, vis_processor, text_processor, vis_root, ann_path, 
+                 label_ratio=0.5, question_diversity_factor=1.0):
+        """
+        vis_root (string): Root directory of images
+        ann_path (string): path to the JSON annotation file
+        label_ratio (float): Ratio of label questions vs description questions (0.0 to 1.0)
+                            Higher values mean more label questions
+        question_diversity_factor (float): Controls question template diversity
+                                          Higher values use more question templates
+        """
+        self.vis_root = vis_root
+        self.vis_processor = vis_processor
+        self.text_processor = text_processor
+        self.label_ratio = max(0.0, min(1.0, label_ratio))  # Ensure ratio is between 0 and 1
+
+        # Define question templates with <EMOTION> placeholder
+        self.label_questions = [
             "What is the <EMOTION> in this image?",
             "Which <EMOTION> is being displayed here?",
             "Can you identify the <EMOTION> in this picture?",
@@ -43,70 +66,104 @@ label_questions = [
             "What's the dominant <EMOTION> present?",
             "Which <EMOTION> tag applies to this image?",
             "What <EMOTION> category does this belong to?",
+            "Name the <EMOTION> expressed in this image.",
+            "What <EMOTION> would you assign to this picture?",
+            "Which <EMOTION> is represented in this visual?",
+            "What <EMOTION> label would you give this?",
             "<EMOTION>"
         ]
 
+        self.description_questions = [
+            # Set 1: General descriptions with emotional components
+            "Describe this image in detail, including the emotional tone it conveys.",
+            "What do you see in this picture and what emotions does it express?",
+            "Provide a complete description of this image, including its emotional atmosphere.",
+            "Analyze this image thoroughly, including any emotional responses it might evoke.",
+            "Describe all visual elements in this picture and the emotional content they create.",
+            "What's happening in this image and what emotional impact does it have?",
+            "Give a comprehensive account of this picture, including its emotional narrative.",
+            "What visual details do you notice in this image and how do they contribute to its emotional feel?",
+            "Describe the scene depicted here, including the emotional story it tells.",
+            "What elements make up this image and what emotional state do they portray?",
 
-description_questions = [
-            "How would you describe the emotional tone of this picture?",
-            "What feelings and emotions does this image convey?",
-            "Describe the emotional atmosphere in this scene.",
-            "What emotional response does this image evoke?",
-            "How would you characterize the emotional content here?",
-            "Describe the emotional impact of this image.",
-            "What is the emotional narrative in this picture?",
-            "How does this image make you feel emotionally?",
-            "What emotional story does this image tell?",
-            "Describe the emotional state portrayed here.",
-            "What emotions and feelings are expressed in this image?",
-            "How would you explain the emotional context of this scene?",
-            "What is the emotional significance of this image?",
-            "Describe the emotional undertones in this picture.",
-            "What emotional experience does this image capture?",
-            "How would you detail the emotional essence here?",
-            "What emotional qualities are present in this image?",
-            "Describe the emotional depth of this scene.",
-            "What emotional message does this image communicate?",
-            "How would you interpret the emotional meaning here?"
+            # Set 2: Content-focused with emotional aspects
+            "Detail the subject matter of this image along with any emotions and feelings expressed.",
+            "What is shown in this picture and how would you explain its emotional context?",
+            "Describe the visual composition of this image and its emotional significance.",
+            "What can you observe in this scene and what emotional undertones does it contain?",
+            "Provide a thorough description of what this image captures, including its emotional essence.",
+            "What visual information does this picture present and what emotional qualities come through?",
+            "Describe the content and setting of this image, as well as its emotional depth.",
+            "What do you see happening in this picture and what emotional message does it communicate?",
+            "Detail the visual elements and arrangement in this image, along with how you would interpret its emotional meaning.",
+            "What specific features appear in this image and what feelings are manifested in it?",
+
+            # Set 3: Technical with emotional components
+            "Analyze the composition, lighting, and subjects in this image, including its emotional temperature.",
+            "Describe the technical aspects of this picture along with the affective dimension it presents.",
+            "What visual techniques are employed in this image and what emotional resonance do they create?",
+            "Detail the visual structure of this picture and the emotional texture it contains.",
+            "How is this image composed and what feelings are evoked by its elements?",
+            "Describe the visual arrangement and subject matter here, along with your analysis of its emotional weight.",
+            "What photographic or visual elements stand out in this image, and what is the emotional spectrum it displays?",
+            "Detail the visual style of this picture and convey its emotional tenor.",
+            "How would you describe the technical execution of this image and the emotional atmosphere it establishes?",
+            "What visual strategies are at work in this picture and what emotional dynamics do they capture?",
+
+            # Set 4: Objective with subjective emotional components
+            "Provide an objective description of this image, then address the feelings it suggests.",
+            "What factual details can you identify in this picture, and what emotional framework does it present?",
+            "Describe the concrete elements visible in this image, as well as the emotional moment it embodies.",
+            "What objective information does this picture contain, and what is its emotional palette?",
+            "Detail the tangible aspects of this image, then describe its emotional fingerprint.",
+            "What physical elements make up this scene, and how would you summarize its emotional character?",
+            "Describe the literal content of this picture, then explain what emotional currents flow through it.",
+            "What factual observations can you make about this image, and what emotional nuances does it present?",
+            "Detail the actual visual content here, then describe what feelings are manifested in this context.",
+            "What concrete details appear in this picture, and how would you delineate its emotional profile?",
+
+            # Set 5: Contextual with emotional aspects
+            "Describe the context and setting of this image, including any emotional layers you can identify.",
+            "What situation is depicted in this picture, and what are its emotional contours?",
+            "Describe the circumstantial details of this image and its emotional signature.",
+            "What scenario is presented here, and how would you map its emotional territory?",
+            "Detail the environmental and situational aspects of this picture and the emotional patterns that emerge.",
+            "What contextual elements can you identify in this image, and what emotional register does it use?",
+            "Describe the setting and circumstances shown here, along with the feelings reflected in its composition.",
+            "What is the context of this picture, and how would you trace its emotional arc?",
+            "Detail the situational framework of this image and the emotional themes it explores.",
+            "What contextual information does this scene provide, and what emotional vocabulary does it express?"
         ]
 
-class RealisticEmotionsDetailDataset(Dataset):
-    def __init__(self, vis_processor, text_processor, vis_root, ann_path, 
-                 question_sampling_ratio=1.0, answer_type_ratio=1.0):
-        """
-        vis_root (string): Root directory of images (e.g. coco/images/)
-        ann_path (string): path to the JSON annotation file
-        question_sampling_ratio (float): Ratio of questions to use (0.0 to 1.0)
-        answer_type_ratio (float): Ratio of full descriptions vs single labels
-        """
-        self.vis_root = vis_root
-        self.vis_processor = vis_processor
-        self.text_processor = text_processor
-        self.answer_type_ratio = max(0.0, min(1.0, answer_type_ratio))
 
-        # Questions for emotion labels (using <EMOTION> placeholder)
-        self.label_questions = label_questions
+        # Determine how many question templates to use based on diversity factor
+        num_label_q = max(1, int(len(self.label_questions) * question_diversity_factor))
+        num_desc_q = max(1, int(len(self.description_questions) * question_diversity_factor))
 
-        # Questions for emotional descriptions
-        self.description_questions = description_questions
-
-        # Sample questions based on the ratio
-        num_label_questions = max(1, int(len(self.label_questions) * question_sampling_ratio))
-        num_desc_questions = max(1, int(len(self.description_questions) * question_sampling_ratio))
-
-        self.label_questions = random.sample(self.label_questions, num_label_questions)
-        self.description_questions = random.sample(self.description_questions, num_desc_questions)
+        # Sample subset of questions if needed
+        if num_label_q < len(self.label_questions):
+            self.label_questions = random.sample(self.label_questions, num_label_q)
+        if num_desc_q < len(self.description_questions):
+            self.description_questions = random.sample(self.description_questions, num_desc_q)
 
         # Load and process annotations
         with open(ann_path, 'r') as f:
             data = json.load(f)
             self.ann = []
             for path, value in data.items():
-                first_word = value.strip().split()[0]
+                # Clean description by removing special characters and extra whitespace
+                clean_desc = ' '.join(value.replace('\n', ' ').split())
+
+                # Extract label (first word before comma, or just first word if no comma)
+                if ',' in clean_desc:
+                    label = clean_desc.split(',')[0].strip()
+                else:
+                    label = clean_desc.split()[0].strip()
+
                 self.ann.append({
                     'image': path,
-                    'emotion_desc': value,
-                    'emotion_label': first_word
+                    'emotion_desc': clean_desc,
+                    'emotion_label': label
                 })
 
     def __len__(self):
@@ -120,13 +177,15 @@ class RealisticEmotionsDetailDataset(Dataset):
         image = Image.open(image_path).convert("RGB")
         image = self.vis_processor(image)
 
-        # Choose between description and label based on ratio
-        if random.random() < self.answer_type_ratio:
-            instruction = random.choice(self.description_questions)
-            answer = info['emotion_desc']
-        else:
+        # Choose between label and description based on label_ratio
+        if random.random() < self.label_ratio:
+            # Label question
             instruction = random.choice(self.label_questions)
             answer = info['emotion_label']
+        else:
+            # Description question
+            instruction = random.choice(self.description_questions)
+            answer = info['emotion_desc']
 
         # Format instruction with image placeholder
         instruction = '<Img><ImageHere></Img> {} '.format(self.text_processor(instruction))
@@ -137,3 +196,4 @@ class RealisticEmotionsDetailDataset(Dataset):
             "answer": answer,
             "image_id": index,
         }
+
